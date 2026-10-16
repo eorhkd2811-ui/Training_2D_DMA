@@ -7,6 +7,7 @@
 | 기준 DUT | 교육TF 프로젝트(현재 컨텍스트)에 등록된 RTL — `axi_dma.sv`, `adma_*.sv`, common(`skid_buffer.v`, `sync_fifo.v` 등) |
 | 검토 방법 | 정적 코드 리뷰(소스 대조 + 신호 흐름 추적). **이번 검토에서 시뮬레이션은 직접 실행하지 않았다.** 실행 수치는 TB 작성자 문서에서 인용했다. |
 | 결론 | **판정을 뒤집는 오류는 없다.** TB는 컨텍스트 DUT와 올바르게 연결되고, AXI 규칙을 지키는 Slave로 버그를 정당하게 재현한다. 개선 권장: Medium 2건, Low 2건, Info 4건 |
+| 범위 결정 (2026-10-16) | 이번 실습은 AXI4 구성(`SRC_IF_TYPE = DST_IF_TYPE = "AXI4"`)만 사용한다. AXI4-Stream(AXIS) 경로의 버그는 **범위 외(AXIS)**로 표시하고 수정·검증하지 않는다. AXIS용 TB는 추가하지 않는다. |
 
 ---
 
@@ -119,7 +120,7 @@
 | T-3 | 🟡 Low | `[WVALID_READY_DEPENDENCY]` 메시지가 WAIT 시나리오 밖에서도 발생 가능 | 없음. 기존 runner 사용 시 혼동 가능 |
 | T-4 | 🟡 Low | W-before-AW(주소보다 데이터가 먼저) 순서를 검증하지 않음 | 없음. 수정 RTL 검증 범위의 공백 |
 | I-1 | ⚪ Info | CSR Slave 응답(B/R) backpressure 미검증 | 없음 |
-| I-2 | ⚪ Info | AXI-Stream 경로 미지원 → 같은 유형 버그를 TB로 검출 불가 | 없음 (RTL 리뷰 R-1과 연결) |
+| I-2 | ⚪ Info | AXI-Stream 경로 미지원 → 같은 유형 버그를 TB로 검출 불가 | 없음. 범위 외(AXIS) (RTL 리뷰 R-1과 연결) |
 | I-3 | ⚪ Info | Verilator 2-state: 리셋 중 X 미검증 / 기존 build 경고 62건 | 없음 |
 | I-4 | ⚪ Info | `tb_drv`가 SCENARIO plusarg를 따로 파싱(`IMAGE_STREAM` 별칭 미정규화) | 없음 |
 
@@ -214,7 +215,7 @@ AXI4에서는 W 데이터가 AW 주소보다 먼저 올 수 있고, Slave가 W�
 ### I-1 ~ I-4 (Info)
 
 - **I-1**: `s_bready_i`, `s_rready_i`가 1로 고정되어 CSR Slave 쪽 B/R 응답의 backpressure와 VALID/READY 의존성은 검증되지 않는다.
-- **I-2**: TB가 AXI4→AXI4만 지원한다(`[DRV]`, `[SEQ]`에서 $fatal). 같은 유형의 버그가 AXI-Stream 출력 모듈에 있지만 이 TB로는 검출할 수 없다. (RTL 리뷰 R-1)
+- **I-2**: TB가 AXI4→AXI4만 지원한다(`[DRV]`, `[SEQ]`에서 $fatal). 같은 유형의 버그가 AXI-Stream 출력 모듈에 있지만 이 TB로는 검출할 수 없다. (RTL 리뷰 R-1) AXIS는 이번 실습 범위 밖이므로 TB 지원을 추가하지 않는다(2026-10-16 결정).
 - **I-3**: Verilator는 2-state 시뮬레이터다. 리셋 중 X 전파, 리셋 직후 VALID 값은 검증되지 않았다. 기존 build 경고(full 62건, unit 1건)는 `-Wno-fatal` 때문에 build를 막지 않으므로 width 경고 등은 따로 검토가 필요하다.
 - **I-4**: `tb_drv`는 `+SCENARIO`를 독립적으로 읽는다. 같은 time 0의 initial 블록 순서에 의존하지 않으려는 선택으로 보이며, `IMAGE_STREAM` 별칭은 `tb_seq`에서만 정규화된다. 새 시나리오 이름 비교에는 영향이 없다.
 
@@ -238,7 +239,7 @@ AXI4에서는 W 데이터가 AW 주소보다 먼저 올 수 있고, Slave가 W�
 | 2 | T-2 unit TB 상류/AXI 분리 | 원본·수정 RTL 결과 변동 없음 확인 |
 | 3 | T-4 `WREADY_BEFORE_AW` 시나리오 | 수정 RTL에서 데이터/predictor PASS |
 | 4 | T-3 메시지 분리 | `run_byte_tb.py --stall-max 40`으로 원본 RTL 실행 시 `[WVALID_WITHHELD]` 출력 확인 |
-| 5 | AXIS 경로 TB 지원 | RTL 리뷰 R-1 수정안 검증용 |
+| — | ~~AXIS 경로 TB 지원~~ | 범위 외(AXIS) — 수행하지 않음 (2026-10-16 결정) |
 
 ---
 
