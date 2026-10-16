@@ -17,9 +17,9 @@
 실습 범위는 AXI4 구성(`SRC_IF_TYPE = DST_IF_TYPE = "AXI4"`)만이다. AXI4-Stream(AXIS)은 사용하지 않는다.
 
 ## 핵심 결정
-1. **`main` = 안정 기준.** RTL/TB 변경은 `main`에 직접 커밋하지 않는다. 작업 브랜치에서 진행하고, 완료 기준을 만족하면 PR로 병합한다. **DOC만 바꾸는 변경(`DOC/`, `CLAUDE.md`, `README.md`)은 `main`에 직접 커밋해도 된다.** RTL/TB가 한 줄이라도 섞이면 이 예외는 적용되지 않는다.
+1. **`main` = 안정 기준.** RTL/TB 변경은 `main`에 직접 커밋하지 않는다. 작업 브랜치에서 진행하고, 완료 기준을 만족하면 PR로 병합한다. **DOC와 Setting script만 바꾸는 변경은 `main`에 직접 커밋해도 된다.** 대상은 `DOC/`, `CLAUDE.md`, `README.md`, Setting script(환경 설정·이미지 변환 등 DUT/검증 결과에 영향이 없는 스크립트, 현재 `TB/env/`)이다. RTL, TB 소스(`tb_*.sv`, `tb_ref.cpp`), 검증 runner(`run_*.py`)가 한 줄이라도 섞이면 이 예외는 적용되지 않는다.
 2. **수정본을 별도 폴더로 복사하지 않는다.** (`NEW_RTL/` 같은 폴더 금지) 버전 차이는 브랜치와 diff로 관리한다.
-3. **RTL/TB 변경 1건 = 브랜치 1개.** 이름은 `fix/<요약>` 또는 `feature/<요약>`이다. RTL 수정과 그것을 검증하는 TB 변경은 같은 브랜치에 둔다. DOC만 바꾸는 변경은 1번의 예외에 따라 브랜치 없이 `main`에 커밋할 수 있다.
+3. **RTL/TB 변경 1건 = 브랜치 1개.** 이름은 `fix/<요약>` 또는 `feature/<요약>`이다. RTL 수정과 그것을 검증하는 TB 변경은 같은 브랜치에 둔다. DOC와 Setting script만 바꾸는 변경은 1번의 예외에 따라 브랜치 없이 `main`에 커밋할 수 있다.
 4. **zip, 빌드 산출물, 시뮬레이션 결과는 커밋하지 않는다.** (`build_byte/`, `run_byte/`, `results/`, `*.vcd`, `*.zip`)
 5. **AXIS 관련 버그는 문서에 기록만 한다.** AXIS 경로(`adma_dm_src_axis.sv`, `adma_dm_dst_axis.sv`, `*_IF_TYPE == "AXIS"`일 때만 동작하는 코드)의 버그는 RTL을 수정하지 않고 TB도 만들지 않는다. DOC에 "범위 외(AXIS)"로 표기하고 원인 위치와 수정안만 적는다.
 6. **알려진 이슈:** `BUG-AXI-W-001`(WVALID가 WREADY에 의존)은 `feature/wvalid-fix`에서 수정했다. `adma_dm_dst_axis.sv`의 TVALID→TREADY 의존(R-1)은 범위 외(AXIS)이므로 수정하지 않는다(문서 기록 완료).
