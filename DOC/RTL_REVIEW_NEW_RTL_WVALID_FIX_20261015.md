@@ -1,12 +1,14 @@
-# RTL 수정 검토 보고서 — `NEW_RTL` (BUG-AXI-W-001 수정본)
+# RTL 수정 검토 보고서 — 수정 RTL (BUG-AXI-W-001 수정본)
+
+> 경로 정리 (2026-10-16): 아래 검증·검토 결과는 과거 기록이며 이번 문서 정리에서 재실행하지 않았다. 당시 원본 로그와 manifest는 현재 저장소에 포함되어 있지 않다. 기준 RTL은 `main`, 수정 RTL과 WVALID 검증 TB는 `feature/wvalid-fix`에 있다. 명령은 저장소 최상위에서 실행한다.
 
 | 항목 | 내용 |
 |---|---|
 | 검토일 | 2026-10-15 (Asia/Seoul) |
-| 검토 대상 | 공유 폴더의 `NEW_RTL/` — HDL 42개(`.sv` 25 + `common/` `.v` 17), `RTL_CHANGES.patch`, `RTL_AXI_WVALID_FIX_CHANGELOG_KO.md`, `VALIDATION_SUMMARY.json` (zip 3개 제외) |
-| 기준 RTL | 교육TF 프로젝트(현재 컨텍스트)의 RTL = Latest RTL |
+| 검토 대상 | `RTL/` (`feature/wvalid-fix`) — HDL 42개(`.sv` 25 + `common/` `.v` 17), 브랜치 diff, `RTL_AXI_WVALID_FIX_CHANGELOG_KO.md`, 과거 검증 요약 |
+| 기준 RTL | 교육TF 프로젝트(현재 컨텍스트)의 RTL = 수정 전 RTL |
 | 관련 버그 | BUG-AXI-W-001: WVALID가 WREADY에 의존하여 합법적인 Slave와 deadlock |
-| 검토 방법 | 정적 코드 리뷰(파일 대조 + 논리 추적). **이번 검토에서 시뮬레이션은 직접 실행하지 않았다.** 회귀 결과(수정 전 4/9, 수정 후 9/9 PASS)는 작성자의 `VALIDATION_SUMMARY.json`을 인용했다. |
+| 검토 방법 | 정적 코드 리뷰(파일 대조 + 논리 추적). **이번 검토에서 시뮬레이션은 직접 실행하지 않았다.** 회귀 결과(수정 전 4/9, 수정 후 9/9 PASS)는 작성자의 과거 검증 요약을 인용했다. |
 | 결론 | **AXI4 W 채널 수정은 정확하다(승인 가능).** 단, **같은 원인의 버그가 AXI-Stream 출력 모듈 `adma_dm_dst_axis.sv`에 그대로 남아 있다(R-1).** R-1은 범위 외(AXIS)이므로 수정하지 않고 기록만 한다. |
 | 범위 결정 (2026-10-16) | 이번 실습은 AXI4 구성(`SRC_IF_TYPE = DST_IF_TYPE = "AXI4"`)만 사용한다. AXI4-Stream(AXIS) 경로의 버그는 **범위 외(AXIS)**로 표시하고 수정·검증하지 않는다. 원인과 수정안은 기록으로만 남긴다. |
 
@@ -28,19 +30,19 @@
 
 ### 2.1 무엇이 바뀌었나?
 
-`NEW_RTL`의 HDL 42개를 Latest RTL manifest(TB 폴더의 `SOURCE_MANIFEST.json`)의 파일 크기와 대조했다.
+수정 RTL의 HDL 42개를 수정 전 RTL manifest(과거 소스 목록)의 파일 크기와 대조했다.
 
 | 구분 | 파일 수 | 결과 |
 |---|---:|---|
 | `adma_*.sv`, `axi_dma.sv` | 25 | 24개 크기 동일, **`adma_dm_axi_w.sv`만 3162 → 3302 bytes** |
 | `common/*.v` | 17 | 17개 모두 크기 동일 |
-| 합계 | 42 | 변경 1개 — `RTL_CHANGES.patch`, `VALIDATION_SUMMARY.json`(`changed_source_files`)과 일치 |
+| 합계 | 42 | 변경 1개 — 브랜치 diff, 과거 검증 요약(`changed_source_files`)과 일치 |
 
 > 크기 일치는 "내용 동일"의 강한 근거지만 증명은 아니다. SHA-256은 이번 검토에서 재계산하지 않았고, 작성자 manifest를 근거로 했다. 전체 목록은 부록 A.
 
 ### 2.2 기준 RTL이 컨텍스트와 같은가?
 
-`RTL_CHANGES.patch`의 context 행(73~79행)과 컨텍스트 `adma_dm_axi_w.sv` 73~79행이 같다. 또한 버그 문서의 원인 행(40행 `SBUF_TYPE=4`, 75~77행)도 컨텍스트 파일과 일치한다. → **수정본은 컨텍스트 RTL을 기준으로 만들어졌다.**
+브랜치 diff의 context 행(73~79행)과 컨텍스트 `adma_dm_axi_w.sv` 73~79행이 같다. 또한 버그 문서의 원인 행(40행 `SBUF_TYPE=4`, 75~77행)도 컨텍스트 파일과 일치한다. → **수정본은 컨텍스트 RTL을 기준으로 만들어졌다.**
 
 ### 2.3 실제 diff
 
@@ -131,7 +133,7 @@
 
 > **범위 외(AXIS), 수정하지 않음.** 이번 실습은 AXI4 구성만 사용한다(2026-10-16 결정). 아래 원인과 권장 수정은 기록용으로 남긴다. AXIS 구성을 사용하게 되면 이 항목을 다시 High로 검토한다.
 
-컨텍스트 사본 기준 101~102행 (`NEW_RTL` 사본도 크기 4870 bytes로 원본과 동일 = 미수정):
+컨텍스트 사본 기준 101~102행 (수정 RTL 사본도 크기 4870 bytes로 원본과 동일 = 미수정):
 
 ```systemverilog
 assign m_tvalid      = atx_wdata_vld & atx_wdata_rdy;   // 101행
@@ -243,9 +245,9 @@ a_wvalid_hold: assert property (@(posedge clk) disable iff (!rst_n)
 
 ---
 
-## 부록 A. 파일 대조표 (Latest RTL manifest 크기 vs NEW_RTL 크기, bytes)
+## 부록 A. 파일 대조표 (수정 전 RTL manifest 크기 vs 수정 RTL 크기, bytes)
 
-| 파일 | 원본 | NEW_RTL | 변경 |
+| 파일 | 원본 | 수정 RTL | 변경 |
 |---|---:|---:|:-:|
 | adma_address_adapter.sv | 2172 | 2172 | |
 | adma_as_atx_arb.sv | 3754 | 3754 | |
@@ -292,7 +294,7 @@ a_wvalid_hold: assert property (@(posedge clk) disable iff (!rst_n)
 
 ## 부록 B. 검토 근거 파일
 
-- NEW_RTL: `adma_dm_axi_w.sv`(수정본 전체), `RTL_CHANGES.patch`, `RTL_AXI_WVALID_FIX_CHANGELOG_KO.md`, `VALIDATION_SUMMARY.json`, 폴더 내 전체 HDL 파일 목록/크기
+- 수정 RTL: `adma_dm_axi_w.sv`(수정본 전체), 브랜치 diff, `RTL_AXI_WVALID_FIX_CHANGELOG_KO.md`, 과거 검증 요약, 폴더 내 전체 HDL 파일 목록/크기
 - 컨텍스트(교육TF 프로젝트): `adma_dm_axi_w.sv`, `adma_dm_dst_axis.sv`, `adma_dm_axi_ax.sv`, `adma_dm_axi_r.sv`, `adma_dm_axi_b.sv`, `adma_dm_src_axis.sv`, `adma_dm_data_buf.sv`, `adma_dm_wr_host.sv`, `adma_data_mover.sv`, `axi_dma.sv`, `skid_buffer.v`, `sync_fifo.v`, `axi4_ctrl.v`
-- 기준 manifest: `TB_WVALID_READY_20261014/SOURCE_MANIFEST.json`
 - 규격: Arm AMBA AXI and ACE Protocol Specification (IHI 0022E/H) A3.1.2, A3.2.1, A3.3.1 / AMBA AXI4-Stream Protocol Specification (IHI 0051A) Handshake process
+

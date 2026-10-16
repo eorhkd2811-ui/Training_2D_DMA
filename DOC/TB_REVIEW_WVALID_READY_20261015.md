@@ -1,9 +1,11 @@
-# TB 검토 보고서 — `TB_WVALID_READY_20261014`
+# TB 검토 보고서 — `TB/`
+
+> 경로 정리 (2026-10-16): 아래 검증·검토 결과는 과거 기록이며 이번 문서 정리에서 재실행하지 않았다. 당시 원본 로그와 manifest는 현재 저장소에 포함되어 있지 않다. 기준 RTL은 `main`, 수정 RTL과 WVALID 검증 TB는 `feature/wvalid-fix`에 있다. 명령은 저장소 최상위에서 실행한다.
 
 | 항목 | 내용 |
 |---|---|
 | 검토일 | 2026-10-15 (Asia/Seoul) |
-| 검토 대상 | 공유 폴더의 `TB_WVALID_READY_20261014/` 파일 18개 + 상위의 `BUG_AXI_WVALID_DEPENDS_ON_WREADY.md`, `README_WVALID_READY.md` (zip 제외) |
+| 검토 대상 | `feature/wvalid-fix`의 `TB/` 및 `DOC/`의 버그 보고서·실행 안내 |
 | 기준 DUT | 교육TF 프로젝트(현재 컨텍스트)에 등록된 RTL — `axi_dma.sv`, `adma_*.sv`, common(`skid_buffer.v`, `sync_fifo.v` 등) |
 | 검토 방법 | 정적 코드 리뷰(소스 대조 + 신호 흐름 추적). **이번 검토에서 시뮬레이션은 직접 실행하지 않았다.** 실행 수치는 TB 작성자 문서에서 인용했다. |
 | 결론 | **판정을 뒤집는 오류는 없다.** TB는 컨텍스트 DUT와 올바르게 연결되고, AXI 규칙을 지키는 Slave로 버그를 정당하게 재현한다. 개선 권장: Medium 2건, Low 2건, Info 4건 |
@@ -58,7 +60,7 @@
 | 6 | bypass 동작 | 문서 인용 | `skid_buffer.v` BYPASS: `fwd_valid_o = bwd_valid_i`, `bwd_ready_o = fwd_ready_i` | ✅ 일치 |
 | 7 | 새 시나리오 분기 | `WREADY_WAIT_VALID`, `..._MID` | `tb_seq`: `IMG_STREAM`이 아니면 `custom_sequence()` + 합성 src_mem 패턴 사용 | ✅ CUSTOM descriptor 재사용 (의도대로) |
 | 8 | 결과 판정 | 새 시나리오 이름 | `tb_sb`: `IMG_STREAM`일 때만 image format 파일 생성, 그 외는 공통 PASS 경로 | ✅ 문제 없음 |
-| 9 | 기존 TB 보존 | 미변경 9개 / 변경 4개 | 미변경 파일 크기 = Latest TB manifest 크기. `tb_drv.sv`, `tb_top.sv`는 "컨텍스트 원본 + patch = Drive 사본"을 전체 내용으로 대조. `tb_seq.sv`, `run_byte_tb.py`는 patch 내용과 크기 증가분으로 대조 | ✅ 일치 |
+| 9 | 기존 TB 보존 | 미변경 9개 / 변경 4개 | 미변경 파일 크기 = 기존 TB manifest 크기. `tb_drv.sv`, `tb_top.sv`는 "컨텍스트 원본 + patch = 검토 사본"을 전체 내용으로 대조. `tb_seq.sv`, `run_byte_tb.py`는 patch 내용과 크기 증가분으로 대조 | ✅ 일치 |
 
 > 참고: `tb_ref.cpp`, `tb_dpi.sv`는 크기가 원본과 같고 W 채널 경로와 무관하여 상세 내용 검토에서 제외했다.
 
@@ -245,10 +247,11 @@ AXI4에서는 W 데이터가 AW 주소보다 먼저 올 수 있고, Slave가 W�
 
 ## 부록 A. 검토한 파일
 
-**Drive TB 폴더 (zip 제외 18개)**: `README_WVALID_READY.md`, `TB_CHANGES.patch`, `SOURCE_MANIFEST.json`, `run_wvalid_regression.py`, `run_byte_tb.py`, `tb_wvalid_check.sv`, `tb_wvalid_unit.sv`, `tb_top.sv`, `tb_drv.sv`, `tb_seq.sv`, `tb_sb.sv`, `tb_monitor.sv`, `tb_if.sv`, `tb_var.sv`, `tb_duv.sv`, `tb_dpi.sv`, `tb_ref.cpp`, `axi_dma_tb.sv`
+**검토 TB 파일 (`TB/`)**: `run_wvalid_regression.py`, `run_byte_tb.py`, `tb_wvalid_check.sv`, `tb_wvalid_unit.sv`, `tb_top.sv`, `tb_drv.sv`, `tb_seq.sv`, `tb_sb.sv`, `tb_monitor.sv`, `tb_if.sv`, `tb_var.sv`, `tb_duv.sv`, `tb_dpi.sv`, `tb_ref.cpp`, `axi_dma_tb.sv`
 
-**상위 폴더**: `BUG_AXI_WVALID_DEPENDS_ON_WREADY.md`, `README_WVALID_READY.md`
+**관련 문서 (`DOC/`)**: `BUG_AXI_WVALID_DEPENDS_ON_WREADY.md`, `README_WVALID_READY.md`
 
 **컨텍스트(교육TF 프로젝트) 대조 파일**: `adma_dm_axi_w.sv`, `adma_dm_wr_host.sv`, `adma_data_mover.sv`, `axi_dma.sv`, `adma_dm_data_buf.sv`, `skid_buffer.v`, `sync_fifo.v`, `tb_top.sv`, `tb_drv.sv`, `tb_seq.sv`, `tb_sb.sv`, `tb_monitor.sv`, `tb_if.sv`, `tb_var.sv`, `tb_duv.sv`, `axi_dma_tb.sv`
 
 **참고 규격**: Arm AMBA AXI and ACE Protocol Specification (IHI 0022E/H) A3.2.1, A3.3.1 — handshake 및 channel dependency 규칙
+
