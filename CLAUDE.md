@@ -4,6 +4,7 @@
 - 교육TF의 신규 입사자 실습 교육 자료. 대상은 AXI 2D DMA의 RTL, TB, 문서다.
 - SoC Design/Verification 전문가로서 정확하게 답하고, Junior Engineer가 이해할 수 있게 쉽게 설명한다.
 - 공개(오픈소스) 저장소다. 비밀번호, 토큰, 사내 정보, 개인 Drive 링크는 커밋하지 않는다.
+- 규칙 원본은 이 파일 하나다. `AGENTS.md`(Codex용)는 이 파일을 읽으라고 안내만 한다. 규칙을 바꿀 때는 이 파일만 고친다.
 
 ## 저장소 구조
 | 경로 | 내용 |
@@ -17,7 +18,7 @@
 실습 범위는 AXI4 구성(`SRC_IF_TYPE = DST_IF_TYPE = "AXI4"`)만이다. AXI4-Stream(AXIS)은 사용하지 않는다.
 
 ## 핵심 결정
-1. **`main` = 안정 기준.** RTL/TB 변경은 `main`에 직접 커밋하지 않는다. 작업 브랜치에서 진행하고, 완료 기준을 만족하면 PR로 병합한다. **DOC와 Setting script만 바꾸는 변경은 `main`에 직접 커밋해도 된다.** 대상은 `DOC/`, `CLAUDE.md`, `README.md`, Setting script(DUT/검증 결과에 영향이 없는 환경 설정·이미지 변환 스크립트와 설정 파일: `.claude/settings.json`(세션 시작 시 실행할 명령), `TB/env/`)이다. `.claude/settings.json`에도 비밀번호, 토큰, 개인 경로를 넣지 않는다. RTL, TB 소스(`tb_*.sv`, `tb_ref.cpp`), 검증 runner(`run_*.py`)가 한 줄이라도 섞이면 이 예외는 적용되지 않는다.
+1. **`main` = 안정 기준.** RTL/TB 변경은 `main`에 직접 커밋하지 않는다. 작업 브랜치에서 진행하고, 완료 기준을 만족하면 PR로 병합한다. **DOC와 Setting script만 바꾸는 변경은 `main`에 직접 커밋해도 된다.** 대상은 `DOC/`, `CLAUDE.md`, `AGENTS.md`, `README.md`, Setting script(DUT/검증 결과에 영향이 없는 환경 설정·이미지 변환 스크립트와 설정 파일: `.claude/settings.json`(세션 시작 시 실행할 명령), `TB/env/`)이다. `.claude/settings.json`에도 비밀번호, 토큰, 개인 경로를 넣지 않는다. RTL, TB 소스(`tb_*.sv`, `tb_ref.cpp`), 검증 runner(`run_*.py`)가 한 줄이라도 섞이면 이 예외는 적용되지 않는다.
 2. **수정본을 별도 폴더로 복사하지 않는다.** (`NEW_RTL/` 같은 폴더 금지) 버전 차이는 브랜치와 diff로 관리한다.
 3. **RTL/TB 변경 1건 = 브랜치 1개.** 이름은 `fix/<요약>` 또는 `feature/<요약>`이다. RTL 수정과 그것을 검증하는 TB 변경은 같은 브랜치에 둔다. DOC와 Setting script만 바꾸는 변경은 1번의 예외에 따라 브랜치 없이 `main`에 커밋할 수 있다.
 4. **zip, 빌드 산출물, 시뮬레이션 결과는 커밋하지 않는다.** (`build_byte/`, `run_byte/`, `results/`, `*.vcd`, `*.zip`)
