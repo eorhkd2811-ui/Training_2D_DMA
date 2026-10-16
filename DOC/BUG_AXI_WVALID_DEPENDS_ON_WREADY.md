@@ -1,14 +1,16 @@
 # BUG-AXI-W-001: WVALID가 WREADY에 의존하여 합법적인 Slave와 deadlock 발생
 
+> 경로 정리 (2026-10-16): 아래 검증·검토 결과는 과거 기록이며 이번 문서 정리에서 재실행하지 않았다. 당시 원본 로그와 manifest는 현재 저장소에 포함되어 있지 않다. 기준 RTL은 `main`, 수정 RTL과 WVALID 검증 TB는 `feature/wvalid-fix`에 있다. 명령은 저장소 최상위에서 실행한다.
+
 | 항목 | 내용 |
 |---|---|
 | 작성일 | 2026-10-14, Asia/Seoul |
 | 상태 | **재현 완료 / RTL 미수정** |
 | 중요도 | High — 합법적인 Slave의 WREADY 정책에서 DMA write 진행 불가 |
-| DUT | Latest RTL의 `axi_dma`, 원인 모듈 `adma_dm_axi_w` |
+| DUT | 수정 전 RTL의 `axi_dma`, 원인 모듈 `adma_dm_axi_w` |
 | 인터페이스 | AXI4 memory-to-memory, 256-bit data, 32-bit address |
 | 결과 | 9개 directed test: 대조군 4 PASS, WVALID 대기 조건 5 FAIL |
-| 원본 보존 | RTL/common 42개 파일 실행 전후 SHA-256 동일; 원본 Latest TB도 미수정 |
+| 원본 보존 | RTL/common 42개 파일 실행 전후 SHA-256 동일; 원본 기존 TB도 미수정 |
 
 ## 1. 결론과 영향
 
@@ -18,14 +20,12 @@ Master의 `m_wvalid_o`에 Slave 입력 `m_wready_i`가 조합논리로 포함되
 
 ## 2. 기준 소스와 환경
 
-- [Latest RTL](https://drive.google.com/drive/folders/1ehUlPQDRaGnAK8QyKzYIfxUSIOIRaxt6): 2026-10-14에 직접 내려받은 원본.
-- [Latest TB](https://drive.google.com/drive/folders/111CWPsMUAUIsp1iRsZKROQhU6BQut0nA): 별도 사본으로 확장. 기존 CUSTOM descriptor, reference model, predictor, CSR/IRQ checker를 유지했다.
-- 원인 파일: [adma_dm_axi_w.sv](https://drive.google.com/file/d/1ZGi542NrF4wk38z3TXOGgw2iGe_Yk9og/view?usp=drivesdk).
-- `adma_dm_axi_w.sv`의 Drive 수정 시각: `2026-10-13T05:21:49.162Z`.
+- 기준 RTL: `main` 브랜치의 [RTL/](https://github.com/eorhkd2811-ui/Training_2D_DMA/tree/main/RTL).
+- [TB/](../TB/): 별도 사본으로 확장. 기존 CUSTOM descriptor, reference model, predictor, CSR/IRQ checker를 유지했다.
+- 원인 파일: [adma_dm_axi_w.sv](../RTL/adma_dm_axi_w.sv).
 - 파일 SHA-256: `717c65792a2f750ad6f00614016609fc8140484194318f56f79bc90b987f72cd`.
 - `common/skid_buffer/skid_buffer.v` SHA-256: `756d3ed33277a2b6f2ec39b47cc78f23dd3cffcc28a942ebb06072c3773b489d`.
-- 전체 source ID, 경로, 수정 시각, 크기, SHA-256: [SOURCE_MANIFEST.json](SOURCE_MANIFEST.json).
-- 실행 환경: Linux, Python 3.12, Verilator Python package `5.48.0`, `--timing --assert --trace`. 해당 배포물의 version 출력은 `rev vUNKNOWN-built20260516-4e853d8`, 실행 banner는 `Verilator 5.49`였다. 정확한 command는 `evidence/build_*/build_result.json`에 보존했다.
+- 실행 환경: Linux, Python 3.12, Verilator Python package `5.48.0`, `--timing --assert --trace`. 해당 배포물의 version 출력은 `rev vUNKNOWN-built20260516-4e853d8`, 실행 banner는 `Verilator 5.49`였다. 당시 실행 로그는 현재 저장소에 포함되어 있지 않다.
 - Full DUT: 2 channels, 256-bit, ROB_EN=0, ATX_NUM_OSTD=2, clock period=2 ns. Unit DUT: 256-bit, ATX_NUM_OSTD=2, clock period=10 ns.
 - RTL parameter 또는 SBUF_TYPE 변경, RTL overlay, `force/release`, DUT 내부 신호 할당을 사용하지 않았다. 내부 상태는 read-only probe로만 관찰했다.
 
@@ -119,33 +119,33 @@ m_wvalid_o = atx_wdata_vld & wdata_len_vld & m_wready_i
 
 ## 7. 재현 방법
 
-TB 폴더에서 다음 명령을 실행한다. `Latest RTL`과 그 하위 `common` 디렉토리가 필요하며, TB 패키지에는 RTL 복사본을 넣지 않았다.
+`feature/wvalid-fix`의 TB를 사용한다. 수정 전 재현은 별도로 checkout한 `main`의 RTL 경로를 `--rtl-dir`에 지정한다. 아래 `--rtl-dir RTL` 명령은 현재 checkout의 RTL을 검증하므로 수정 브랜치에서는 9 PASS가 기대된다.
 
 ```bash
-python3 run_wvalid_regression.py \
-  --rtl-dir "/path/to/Latest RTL" \
-  --out ./results --jobs 1
+python3 TB/run_wvalid_regression.py \
+  --rtl-dir RTL \
+  --out /tmp/wvalid_results --jobs 1
 ```
 
 첫 beat 실패만 재현:
 
 ```bash
-python3 run_wvalid_regression.py \
-  --rtl-dir "/path/to/Latest RTL" \
-  --out ./results --jobs 1 --case full_wait_valid
+python3 TB/run_wvalid_regression.py \
+  --rtl-dir RTL \
+  --out /tmp/wvalid_results --jobs 1 --case full_wait_valid
 ```
 
 W-channel 단독 1-beat 재현:
 
 ```bash
-python3 run_wvalid_regression.py \
-  --rtl-dir "/path/to/Latest RTL" \
-  --out ./results --jobs 1 --case unit_wait_valid_1
+python3 TB/run_wvalid_regression.py \
+  --rtl-dir RTL \
+  --out /tmp/wvalid_results --jobs 1 --case unit_wait_valid_1
 ```
 
 Simulator가 PATH에 없으면 Python의 `verilator` package를 사용한다. 검증에 사용한 package는 `5.48.0`이다. C++ compiler와 make가 필요하다. 전체 DMA TB는 mailbox/interface/DPI-C/timing을 사용하므로 SystemVerilog 지원이 필요하다. `--no-build`는 성공한 build와 source hash/command가 모두 같을 때만 허용된다.
 
-증거는 `evidence/summary.json`, 각 case의 `run.log`, `result.json`, `*_trace.csv`, `wave.vcd`에 있다. Full waveform에서 확인할 경로는 다음과 같다.
+과거 결과의 원본 로그는 현재 저장소에 포함되어 있지 않다. 재실행 결과는 `--out`에 지정한 디렉터리에 생성된다. Full waveform에서 확인할 경로는 다음과 같다.
 
 ```text
 axi_dma_tb.env.bus.m_wvalid_o
@@ -164,3 +164,4 @@ axi_dma_tb.env.duv.dut.dm.wh.DST_AXI4_GEN.w.atx_wdata_rdy
 현재 버그 때문에 VALID가 READY보다 먼저 제시되는 경우는 실행된 테스트에서 관찰되지 않았다. 따라서 VALID/payload hold checker는 포함했지만 그 정상 경로를 통과했다고 주장하지 않는다. 수정 후에는 새 시나리오의 정상 완료, stalled payload 안정성, 최종 beat/WLAST, 다음 burst와 data/predictor/IRQ regression을 다시 확인해야 한다.
 
 이번 결과는 명시한 구성과 directed 시나리오의 검증 결과다. 전체 AXI compliance, AXI Stream, 모든 ROB/채널/데이터폭 조합, X propagation, reset 도중 stall은 검증하지 않았다. Verilator의 2-state 실행 결과이므로 4-state X 검증 완료를 의미하지 않는다.
+

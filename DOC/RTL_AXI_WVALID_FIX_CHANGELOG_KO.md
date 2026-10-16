@@ -1,12 +1,14 @@
 # AXI WVALID / WREADY 의존성 수정 — 개발자 변경 내역
 
+> 경로 정리 (2026-10-16): 아래 검증·검토 결과는 과거 기록이며 이번 문서 정리에서 재실행하지 않았다. 당시 원본 로그와 manifest는 현재 저장소에 포함되어 있지 않다. 기준 RTL은 `main`, 수정 RTL과 WVALID 검증 TB는 `feature/wvalid-fix`에 있다. 명령은 저장소 최상위에서 실행한다.
+
 | 항목 | 내용 |
 |---|---|
 | 작성일 | 2026-10-14, Asia/Seoul |
 | 관련 Bug | `BUG-AXI-W-001`: WVALID가 WREADY에 의존하여 deadlock 발생 |
 | 상태 | **수정본 작성 및 기존 재현 regression 9/9 PASS** |
-| 기준 소스 | [Latest RTL](https://drive.google.com/drive/folders/1ehUlPQDRaGnAK8QyKzYIfxUSIOIRaxt6)에서 직접 받은 42개 RTL/common HDL 파일 |
-| 저장 위치 | [NEW_RTL](https://drive.google.com/drive/folders/1GX2uLGA_okVHpL1mJMUNasqS1DA8xQvT) — 원본 Latest RTL에는 반영하지 않음 |
+| 기준 소스 | `main`의 `RTL/` — RTL/common HDL 42개 |
+| 저장 위치 | `feature/wvalid-fix` 브랜치의 `RTL/` |
 | 수정 파일 | `adma_dm_axi_w.sv` 1개; 기능 코드 1행 변경, 설명 주석 2행 추가, 파일 끝 개행 정리 |
 | 원본 보존 | 기존 재현 manifest와 원본 HDL 42개 SHA-256 일치. 실행 전후 원본 SHA-256 일치 |
 
@@ -16,7 +18,7 @@ DMA Master에 보낼 데이터가 있어도 Slave의 `WREADY`가 0이면 `WVALID
 
 이번에는 **데이터와 burst 길이가 준비되면 WREADY와 관계없이 WVALID를 먼저 제시하도록** 수정했다. 실제 데이터를 다음 beat로 넘기는 시점은 기존대로 handshake가 성립할 때다.
 
-기존 보고서: [BUG_AXI_WVALID_DEPENDS_ON_WREADY.md](https://drive.google.com/file/d/1VDPJs1tPmvRjZY6tno1FqYQIhe05dEvB/view).
+기존 보고서: [BUG_AXI_WVALID_DEPENDS_ON_WREADY.md](BUG_AXI_WVALID_DEPENDS_ON_WREADY.md).
 
 ## 2. 처음 읽는 엔지니어를 위한 용어
 
@@ -105,13 +107,13 @@ data_consumed = data_valid AND length_valid AND WREADY
 | `SBUF_TYPE` | 기존 4(bypass) 유지 |
 | data FIFO / 길이 FIFO / counter / WLAST 식 | 기존 구현 유지 |
 | 포트, parameter, CSR map, 주소 단위 | 변경 없음 |
-| 검증 TB | 이전 재현 패키지의 SV/C++/Python 15개를 그대로 사용 |
+| 검증 TB | `feature/wvalid-fix`의 `TB/` |
 
 이번 원인은 VALID 생성식에 READY가 들어간 것이므로 해당 식을 수정했다. Buffer type 변경으로 우회하지 않았다. Buffer type에 따라 저장 용량과 latency가 달라질 수 있으며, 그 효과는 이번 검증 범위가 아니다. 새 register나 FIFO stage는 추가하지 않았다. 면적·최대 주파수·전력의 실측 또는 합성 결과는 없다.
 
 ## 7. 수정 전후 재실행 결과
 
-이전 결과를 옮겨 적는 데 그치지 않고, 이번에 내려받은 원본과 수정본을 **동일한 TB 및 실행 옵션**으로 각각 build/run했다. 소스 경로와 결과 출력 경로만 분리했다. TB의 checker나 timeout을 느슨하게 바꾸지 않았다.
+이전 결과를 옮겨 적는 데 그치지 않고, 당시 원본과 수정본을 **동일한 TB 및 실행 옵션**으로 각각 build/run했다. 소스 경로와 결과 출력 경로만 분리했다. TB의 checker나 timeout을 느슨하게 바꾸지 않았다.
 
 | 테스트 | 확인 조건 | 수정 전 | 수정 후 |
 |---|---|---|---|
@@ -161,37 +163,24 @@ data_consumed = data_valid AND length_valid AND WREADY
 - Simulator: Verilator Python package `5.48.0`, `--timing --assert --trace`. 실제 version 문자열은 `rev vUNKNOWN-built20260516-4e853d8`; run banner는 Verilator 5.49다.
 - Full DUT: AXI4 memory-to-memory, 256-bit data, 32-bit address, 2 channels, `ROB_EN=0`, `ATX_NUM_OSTD=2`, clock 2 ns.
 - Unit DUT: 256-bit data, `ATX_NUM_OSTD=2`, clock 10 ns, 1/4-beat burst.
-- 동일한 기존 build warning이 남아 있다. Full은 62건, unit은 1건으로 수정 전후 종류와 개수가 같다. Width, ascending range, TB static lifetime 등의 기존 경고를 이번 수정에서 정리하지 않았다. 원문은 `verification/evidence/*/build_*/build.log`에 있다.
+- 동일한 기존 build warning이 남아 있다. Full은 62건, unit은 1건으로 수정 전후 종류와 개수가 같다. Width, ascending range, TB static lifetime 등의 기존 경고를 이번 수정에서 정리하지 않았다. 당시 build 로그는 현재 저장소에 포함되어 있지 않다.
 - 전체 AXI compliance, AXI Stream, 모든 data width/ROB/channel 조합, 최대 256-beat burst, reset 도중 stall, 4-state X propagation, 합성·STA는 검증하지 않았다. 본 수정의 결론은 위 조건에서 재현한 WVALID/WREADY 의존성 문제에 한정한다.
 
-## 9. 파일 구성 및 다시 실행하는 방법
+## 9. 저장소 구성 및 다시 실행하는 방법
 
-Drive의 NEW_RTL 폴더에는 `.sv` 파일들과 `common/`을 직접 저장한다. ZIP에는 동일한 수정 RTL을 `rtl/`에 넣고, 아래 문서와 검증 자료를 함께 보관한다.
+수정본은 `feature/wvalid-fix`의 `RTL/`, 검증 TB는 `TB/`, 관련 문서는 `DOC/`에 있다. 변경 내용은 `main...feature/wvalid-fix` diff로 확인한다.
 
-| 패키지 경로 | 내용 |
-|---|---|
-| `rtl/` | 수정본 전체: HDL 42개와 common README |
-| `RTL_AXI_WVALID_FIX_CHANGELOG_KO.md` | 이 문서 |
-| `RTL_CHANGES.patch` | 원본 대비 patch. 한 파일만 변경 |
-| `SOURCE_MANIFEST.json` | 원본 Drive ID/시각/크기/SHA-256 및 수정본 SHA-256 |
-| `verification/tb/` | 이전 재현 TB의 SV/C++/Python 15개, 내용 그대로 |
-| `verification/evidence/before/` | 이번 수정 전 재실행 결과 |
-| `verification/evidence/after/` | 이번 수정 후 재실행 결과 |
-| `verification/VALIDATION_SUMMARY.json` | 비교 결과와 소스 보존 검사 |
-
-전체 ZIP을 풀고 최상위 `RTL_AXI_WVALID_FIX_20261014` 디렉토리에서 실행한다. Verilator, C++ compiler, make, Python이 필요하다. Verilator가 PATH에 없으면 runner가 `python -m verilator`를 사용한다.
+Verilator, C++ compiler, make, Python을 준비하고 저장소 최상위에서 실행한다.
 
 ```bash
-python3 verification/tb/run_wvalid_regression.py \
-  --rtl-dir ./rtl --out ./rerun_results --jobs 2
+python3 TB/run_wvalid_regression.py --rtl-dir RTL --out /tmp/wvalid_results --jobs 2
 ```
 
-수정본의 기대 결과는 9 PASS, exit code 0이다. 수정 전을 비교하려면 별도로 받은 Latest RTL 경로를 `--rtl-dir`로 지정하고, 결과를 다른 `--out`에 저장한다. 원본에서는 4 PASS / 5 FAIL, exit code 1이 기대된다.
+수정본의 기대 결과는 9 PASS, exit code 0이다. 수정 전 비교는 별도로 checkout한 `main`의 RTL 경로를 `--rtl-dir`에 지정하고 다른 출력 디렉터리를 사용한다. 수정 전 기대 결과는 4 PASS / 5 FAIL, exit code 1이다.
 
-각 case의 `run.log`, `result.json`, CSV, `wave.vcd`가 근거다. Build object와 실행 바이너리는 패키지에 포함하지 않았다. Build 기록의 절대 경로는 이번 실행 위치이므로 다른 환경에서는 위 명령으로 새로 build한다.
-
-기존 프로젝트에 한 파일만 반영하려면 이 수정본의 `adma_dm_axi_w.sv`를 사용한다. 원본과 수정본의 동명 module을 동시에 compile하면 안 된다. 이번 작업에서는 **원본 Latest RTL 파일을 교체하거나 덮어쓰지 않았다.**
+재실행 결과와 build 로그는 `--out` 디렉터리에 생성된다. 과거 실행의 원본 로그는 현재 저장소에 포함되어 있지 않다.
 
 ## 10. 규칙 확인 근거
 
 Arm [AMBA AXI and ACE Protocol Specification, IHI 0022H](https://developer.arm.com/-/media/Arm%20Developer%20Community/PDF/IHI0022H_amba_axi_protocol_spec.pdf), A3.2.1 및 A3.3.1을 확인했다. Master의 VALID는 상대의 READY를 기다려 assert하면 안 되며, assert한 VALID와 payload는 handshake까지 유지해야 한다. Slave는 VALID를 확인한 뒤 READY를 assert할 수 있다. 이 규칙에 맞춰 VALID 생성과 데이터 소비 조건을 분리했다.
+
