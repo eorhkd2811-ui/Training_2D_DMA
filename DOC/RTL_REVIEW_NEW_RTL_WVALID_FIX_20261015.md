@@ -7,7 +7,8 @@
 | 기준 RTL | 교육TF 프로젝트(현재 컨텍스트)의 RTL = Latest RTL |
 | 관련 버그 | BUG-AXI-W-001: WVALID가 WREADY에 의존하여 합법적인 Slave와 deadlock |
 | 검토 방법 | 정적 코드 리뷰(파일 대조 + 논리 추적). **이번 검토에서 시뮬레이션은 직접 실행하지 않았다.** 회귀 결과(수정 전 4/9, 수정 후 9/9 PASS)는 작성자의 `VALIDATION_SUMMARY.json`을 인용했다. |
-| 결론 | **AXI4 W 채널 수정은 정확하다(승인 가능).** 단, **같은 원인의 버그가 AXI-Stream 출력 모듈 `adma_dm_dst_axis.sv`에 그대로 남아 있다.** 이번 변경에 포함하거나 별도 버그로 등록해야 한다. |
+| 결론 | **AXI4 W 채널 수정은 정확하다(승인 가능).** 단, **같은 원인의 버그가 AXI-Stream 출력 모듈 `adma_dm_dst_axis.sv`에 그대로 남아 있다(R-1).** R-1은 범위 외(AXIS)이므로 수정하지 않고 기록만 한다. |
+| 범위 결정 (2026-10-16) | 이번 실습은 AXI4 구성(`SRC_IF_TYPE = DST_IF_TYPE = "AXI4"`)만 사용한다. AXI4-Stream(AXIS) 경로의 버그는 **범위 외(AXIS)**로 표시하고 수정·검증하지 않는다. 원인과 수정안은 기록으로만 남긴다. |
 
 ---
 
@@ -17,7 +18,7 @@
 - ✅ WVALID가 더 이상 WREADY에 의존하지 않는다. 데이터 소비·카운터·길이 FIFO pop은 기존대로 handshake에서만 일어난다.
 - ✅ stall 중 WVALID/WDATA/WLAST가 유지된다. (근거: FIFO 구조, 4장)
 - ✅ 포트·파라미터·내부 신호명이 바뀌지 않아 기존 TB(probe, unit TB `.*`)와 호환된다.
-- 🔴 **R-1 (High, AXIS 구성 사용 시)**: `adma_dm_dst_axis.sv`에 `TVALID`가 `TREADY`에 의존하는 같은 패턴이 남아 있다.
+- ⚪ **R-1 (범위 외(AXIS), 수정하지 않음)**: `adma_dm_dst_axis.sv`에 `TVALID`가 `TREADY`에 의존하는 같은 패턴이 남아 있다. AXIS 구성을 쓴다면 High에 해당한다.
 - 🟡 **R-2 (Low)**: 리셋 직후 WVALID를 가려 주던 `& WREADY`가 사라졌다. 4-state 시뮬레이션으로 리셋 동작 확인을 권장한다.
 - ⚪ R-3 ~ R-5: W-before-AW 가능, 모듈 계약 assertion, 타이밍 개선 (Info)
 
@@ -120,13 +121,15 @@
 
 | ID | 심각도 | 요약 |
 |---|---|---|
-| R-1 | 🔴 High (AXIS 구성 시) / 현재 AXI4 구성에는 영향 없음 | `adma_dm_dst_axis.sv`: TVALID가 TREADY에 의존 — 같은 버그 미수정 |
+| R-1 | ⚪ 범위 외(AXIS) — 수정하지 않음 (AXIS 구성 사용 시 High, AXI4 구성에는 영향 없음) | `adma_dm_dst_axis.sv`: TVALID가 TREADY에 의존 — 기록만 유지 |
 | R-2 | 🟡 Low | 리셋 직후 WVALID 마스킹 제거 → 4-state 리셋 확인 권장 |
 | R-3 | ⚪ Info | WVALID가 AW handshake보다 먼저 나갈 수 있음 (AXI4 합법) |
 | R-4 | ⚪ Info | 모듈 계약(상류 hold)을 assertion으로 문서화 권장 |
 | R-5 | ⚪ Info | 입력→출력 조합 경로 제거로 타이밍 개선, 면적 변화 없음 |
 
-### R-1 (High) `adma_dm_dst_axis.sv`에 같은 패턴이 남아 있다
+### R-1 [범위 외(AXIS)] `adma_dm_dst_axis.sv`에 같은 패턴이 남아 있다
+
+> **범위 외(AXIS), 수정하지 않음.** 이번 실습은 AXI4 구성만 사용한다(2026-10-16 결정). 아래 원인과 권장 수정은 기록용으로 남긴다. AXIS 구성을 사용하게 되면 이 항목을 다시 High로 검토한다.
 
 컨텍스트 사본 기준 101~102행 (`NEW_RTL` 사본도 크기 4870 bytes로 원본과 동일 = 미수정):
 
@@ -207,7 +210,7 @@ a_wvalid_hold: assert property (@(posedge clk) disable iff (!rst_n)
 | 모듈 | 출력 VALID / 역할 | 생성 방식 | READY 의존 | 판정 |
 |---|---|---|---|---|
 | `adma_dm_axi_w` | WVALID | `atx_wdata_vld & wdata_len_vld` (수정 후) | 없음 | ✅ 수정됨 |
-| `adma_dm_dst_axis` | TVALID | `atx_wdata_vld & atx_wdata_rdy`, bypass | **있음** | 🔴 R-1 |
+| `adma_dm_dst_axis` | TVALID | `atx_wdata_vld & atx_wdata_rdy`, bypass | **있음** | ⚪ R-1 범위 외(AXIS) |
 | `adma_dm_axi_ax` (AW/AR) | AWVALID/ARVALID | `skid_buffer` SBUF_TYPE 0 (`fwd_valid_q` flop) | 없음 | ✅ |
 | `adma_dm_axi_r` | RREADY 출력 (수신측) | READY는 VALID에 의존해도 됨 | 해당 없음 | ✅ |
 | `adma_dm_axi_b` | BREADY 출력 (수신측) | ROB 미사용 시 상수 1 | 해당 없음 | ✅ |
@@ -223,7 +226,7 @@ a_wvalid_hold: assert property (@(posedge clk) disable iff (!rst_n)
 
 | 순위 | 항목 | 이유 |
 |---|---|---|
-| 1 | R-1 수정 + AXIS directed test ("TVALID 확인 후 TREADY" 수신측) | 같은 deadlock 재현 및 수정 확인 |
+| — | ~~R-1 수정 + AXIS directed test~~ | 범위 외(AXIS) — 수행하지 않음 (2026-10-16 결정) |
 | 2 | TB 리뷰 T-1의 조합 경로 monitor로 9개 시험 재실행 | READY-first 대조군에서도 원인을 직접 검출 |
 | 3 | 4-state 시뮬레이션 리셋 검사 (R-2) | Verilator 2-state로는 확인 불가 |
 | 4 | W-before-AW 시나리오 (R-3, TB T-4) | 수정 후 새로 가능해진 순서 |
@@ -235,7 +238,7 @@ a_wvalid_hold: assert property (@(posedge clk) disable iff (!rst_n)
 
 1. **VALID는 "상태", handshake는 "사건"이다.** 원본 버그는 둘을 같은 식으로 만든 데서 시작됐다. 수정은 둘을 분리한 것이다.
 2. **bypass skid buffer는 선 한 가닥이다.** 레지스터가 없으므로 출력 VALID가 내부 조합 논리에 그대로 붙는다. bypass를 쓸 때는 VALID 식에 READY가 들어가지 않았는지 반드시 본다.
-3. **수정은 작게, 점검은 넓게.** 이번 수정이 1행으로 끝난 것은 좋다(위험 최소). 하지만 같은 패턴이 다른 모듈에 있는지 전수 점검하는 것까지가 수정 작업이다(R-1).
+3. **수정은 작게, 점검은 넓게.** 이번 수정이 1행으로 끝난 것은 좋다(위험 최소). 하지만 같은 패턴이 다른 모듈에 있는지 전수 점검하는 것까지가 수정 작업이다(R-1). 점검에서 찾은 버그가 실습 범위 밖이면 수정 대신 범위 외로 기록한다.
 4. **"9/9 PASS"의 범위를 읽는다.** 작성자도 명시했듯 이 결과는 선택된 9개 시험의 결과이며, 실행되지 않은 구성(AXIS 등)에 대해서는 아무것도 말해 주지 않는다.
 
 ---
@@ -262,7 +265,7 @@ a_wvalid_hold: assert property (@(posedge clk) disable iff (!rst_n)
 | adma_dm_axi_r.sv | 6104 | 6104 | |
 | **adma_dm_axi_w.sv** | **3162** | **3302** | **★** |
 | adma_dm_data_buf.sv | 1413 | 1413 | |
-| adma_dm_dst_axis.sv | 4870 | 4870 | (R-1 미수정) |
+| adma_dm_dst_axis.sv | 4870 | 4870 | (R-1, 범위 외(AXIS), 수정하지 않음) |
 | adma_dm_rd_host.sv | 6322 | 6322 | |
 | adma_dm_src_axis.sv | 4381 | 4381 | |
 | adma_dm_wr_host.sv | 7443 | 7443 | |
