@@ -1,0 +1,12 @@
+rm -rf .sourceme.initdir.done
+source sourceme
+
+make clean
+
+make all \
+SCENARIO=CUSTOM \
+STALL_MAX=0 \
+MONITOR=1 \
+TIMEOUT_NS=200000 \
+INJECT_ERROR=0 \
+INJECT_ADDR_ERROR=0
