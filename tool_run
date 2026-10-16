@@ -1,0 +1,73 @@
+TEST_MODULE ?= axi_dma
+
+SCENARIO ?= IMG_STREAM
+STALL_MAX ?= 0
+MONITOR ?= 0
+TIMEOUT_NS ?= 200000
+INJECT_ERROR ?= 0
+INJECT_ADDR_ERROR ?= 0
+
+PLUSARGS = \
+--testplusarg SCENARIO=$(SCENARIO) \
+--testplusarg STALL_MAX=$(STALL_MAX) \
+--testplusarg MONITOR=$(MONITOR) \
+--testplusarg TIMEOUT_NS=$(TIMEOUT_NS) \
+--testplusarg INJECT_ERROR=$(INJECT_ERROR) \
+--testplusarg INJECT_ADDR_ERROR=$(INJECT_ADDR_ERROR)
+
+RM_CMD = rm -rf \
+$(TEST_MODULE) \
+xsim.dir \
+*.jou \
+*.log \
+*.pb \
+*.str \
+*.so \
+dpi.h
+
+SIM_TOP = $(TEST_MODULE)_tb
+
+DPI_LIB = libtb_ref.so
+
+all: clean run_sim
+
+run_sim: clean build_dpi compile execute
+
+compile:
+	mkdir -p $(TEST_MODULE)
+
+	xvlog -sv \
+		-f rtl.f \
+		-f tb.f \
+		-log $(TEST_MODULE)/xvlog.log
+
+	xelab $(SIM_TOP( \
+		--dpiheader dpi.h \
+		-sv_root . \
+		-sv_lib libtb_ref \
+		-debug typical \
+		-timescale 1ns/1ps \
+		-log $(TEST_MODULE)/xelab.log
+
+build_dpi:
+	g++ \
+		-O2 \
+		-fPIC \
+		-shared \
+		-static-libstdc++ \
+		-static-libcc \
+		I$(XILINX_VIVADO)/data/xsim/include \
+		../TB/tb_ref.cpp \
+		-o $(DPI_LIB)
+
+execute:
+	xsim $(SIM_TOP) \
+		$(PLUSARGS) \
+		-tclbatch xsim_run.tcl \
+		-wdb $(TEST_MODULE)/$(TEST_MODULE).wdb \
+		-log $(TEST_MODULE)/xsim.log
+
+clean:
+	$(RM_CMD)
+
+.PHONY: all run_sim clean
