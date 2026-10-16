@@ -22,7 +22,7 @@ def main():
                    help='repeat for overlays; later folders override earlier basenames')
     p.add_argument('--common-dir',type=Path)
     p.add_argument('--verilator')
-    p.add_argument('--scenario',choices=['CUSTOM','IMG_STREAM'],default='IMG_STREAM')
+    p.add_argument('--scenario',choices=['CUSTOM','IMG_STREAM','WREADY_WAIT_VALID','WREADY_WAIT_VALID_MID'],default='IMG_STREAM')
     p.add_argument('--stall-max',type=int,default=0)
     p.add_argument('--timeout-ns',type=int,default=200000)
     p.add_argument('--build-dir',type=Path)
@@ -59,7 +59,7 @@ def main():
                    'fifo/sync_fifo','skid_buffer','reorder_buffer','splitter']:
         shared.extend(sorted((common/folder).glob('*.v')))
     tb=[here/name for name in ['tb_var.sv','tb_dpi.sv','tb_if.sv','tb_drv.sv','tb_seq.sv',
-        'tb_monitor.sv','tb_sb.sv','tb_duv.sv','tb_top.sv','axi_dma_tb.sv','tb_ref.cpp']]
+        'tb_monitor.sv','tb_sb.sv','tb_duv.sv','tb_wvalid_check.sv','tb_top.sv','axi_dma_tb.sv','tb_ref.cpp']]
     sources=tb+list(files.values())+shared
     for file in sources:
         if not file.is_file(): p.error(f'missing source: {file}')

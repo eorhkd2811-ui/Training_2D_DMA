@@ -190,8 +190,9 @@ module tb_seq(tb_if bus);
     if($value$plusargs("IRQ_INJECT_CLEAR_ERROR=%d",inject_irq_clear)) begin end
     if($value$plusargs("SCENARIO=%s",bus.scenario)) begin end
     if(bus.scenario=="IMAGE_STREAM") bus.scenario="IMG_STREAM";
-    if(bus.scenario!="IMG_STREAM" && bus.scenario!="CUSTOM")
-      $fatal(1,"[SEQ] unsupported SCENARIO=%s (IMG_STREAM/CUSTOM)",bus.scenario);
+    if(bus.scenario!="IMG_STREAM" && bus.scenario!="CUSTOM" &&
+       bus.scenario!="WREADY_WAIT_VALID" && bus.scenario!="WREADY_WAIT_VALID_MID")
+      $fatal(1,"[SEQ] unsupported SCENARIO=%s (IMG_STREAM/CUSTOM/WREADY_WAIT_VALID/WREADY_WAIT_VALID_MID)",bus.scenario);
     if(SRC_IF_TYPE!="AXI4" || DST_IF_TYPE!="AXI4" || DMA_CHN_NUM!=2 ||
        ATX_SRC_DATA_W!=256 || ATX_DST_DATA_W!=256 || DMA_LENGTH_W!=16 || S_DATA_W!=32 ||
        SRC_ADDR_W!=32 || DST_ADDR_W!=32 || MST_ID_W!=5)

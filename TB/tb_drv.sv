@@ -9,6 +9,9 @@ module tb_drv(tb_if bus);
     mailbox #(atx_ax_info) write_requests = new();
     mailbox #(atx_b_info) write_responses = new();
     int stall_max = 0;
+    int valid_hold_cycles = 2;
+    string selected_scenario = "CUSTOM";
+    int w_accepted = 0;
 
     // Deterministic independently phased delays; no global random-state coupling.
     function automatic int delay_cycles(input int unsigned ordinal,
@@ -46,6 +49,10 @@ module tb_drv(tb_if bus);
 
     initial begin : SETTINGS
         if ($value$plusargs("STALL_MAX=%d", stall_max)) begin end
+        if ($value$plusargs("SCENARIO=%s", selected_scenario)) begin end
+        if ($value$plusargs("WVALID_HOLD_CYCLES=%d", valid_hold_cycles)) begin end
+        if (valid_hold_cycles < 1 || valid_hold_cycles > 16)
+            $fatal(1,"[DRV] WVALID_HOLD_CYCLES must be 1..16");
         if (stall_max < 0 || stall_max > 1000)
             $fatal(1, "[DRV] STALL_MAX must be 0..1000");
         if (SRC_IF_TYPE != "AXI4" || DST_IF_TYPE != "AXI4")
@@ -297,8 +304,20 @@ module tb_drv(tb_if bus);
                     $fatal(1, "[DRV] Destination write out of bounds address=%08h beat=%0d index=%0d", info.axaddr, beat, index);
                 repeat (delay_cycles(ordinal++, 4)) @(negedge bus.aclk);
                 @(negedge bus.aclk);
+                // Legal Slave policy: hold WREADY low until WVALID is sampled.
+                // Drive only on falling edges; no combinational READY/VALID loop.
+                if (selected_scenario == "WREADY_WAIT_VALID" ||
+                    (selected_scenario == "WREADY_WAIT_VALID_MID" && w_accepted > 0)) begin
+                    $display("[WREADY_WAIT] t_ns=%0.3f id=%0d burst_beat=%0d accepted=%0d",
+                             $realtime, info.axid, beat, w_accepted);
+                    do @(posedge bus.aclk); while (bus.m_wvalid_o !== 1'b1);
+                    // Exercise VALID/payload hold, then acknowledge on a later edge.
+                    repeat(valid_hold_cycles) @(posedge bus.aclk);
+                    @(negedge bus.aclk);
+                end
                 bus.m_wready_i = 1'b1;
                 do @(posedge bus.aclk); while (bus.m_wvalid_o !== 1'b1);
+                w_accepted++;
                 if (bus.m_wlast_o !== (beat == int'(info.axlen)))
                     $fatal(1, "[DRV] WLAST mismatch id=%0d beat=%0d AWLEN=%0d WLAST=%b", info.axid, beat, info.axlen, bus.m_wlast_o);
                 if (bus.m_wstrb_o !== {ATX_DST_BYTE_AMT{1'b1}})
